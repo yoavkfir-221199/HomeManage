@@ -1,4 +1,5 @@
 import {
+  type AnyPgColumn,
   boolean,
   date,
   doublePrecision,
@@ -35,6 +36,39 @@ export const recipes = pgTable("recipes", {
   steps: jsonb("steps").$type<string[]>().notNull().default([]),
   tags: text("tags").array().notNull().default([]),
   sourceUrl: text("source_url"),
+  // Where it came from: "chat", "manual", and later "instagram" (the
+  // Instagram automation will save recipe ideas here with their post URL).
+  source: text("source").notNull().default("chat"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// One row per week you plan. `weekStart` is the Sunday the week starts on.
+export const mealPlans = pgTable("meal_plans", {
+  id: serial("id").primaryKey(),
+  weekStart: date("week_start").notNull().unique(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// The meals inside a week plan: "Tuesday dinner: shakshuka".
+export const plannedMeals = pgTable("planned_meals", {
+  id: serial("id").primaryKey(),
+  planId: integer("plan_id")
+    .notNull()
+    .references(() => mealPlans.id, { onDelete: "cascade" }),
+  day: date("day").notNull(),
+  meal: text("meal").notNull(), // "breakfast" | "lunch" | "dinner"
+  title: text("title").notNull(),
+  recipeId: integer("recipe_id").references(() => recipes.id, { onDelete: "set null" }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Long-term memory about how you eat, set on the Settings page (or by asking
+// the planner to "remember…"). Every chat request includes these.
+export const foodPreferences = pgTable("food_preferences", {
+  id: serial("id").primaryKey(),
+  text: text("text").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -47,5 +81,7 @@ export const shoppingListItems = pgTable("shopping_list_items", {
   category: text("category"),
   checked: boolean("checked").notNull().default(false),
   recipeId: integer("recipe_id").references(() => recipes.id, { onDelete: "set null" }),
+  // `(): AnyPgColumn` is needed because meal_plans is defined further down.
+  planId: integer("plan_id").references((): AnyPgColumn => mealPlans.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

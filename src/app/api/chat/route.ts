@@ -50,6 +50,8 @@ import { requiredEnv } from "@/lib/env"; // reads an env var or throws if it's m
 import { storeTurn } from "@/lib/history"; // saves a finished turn to OpenUI Cloud
 import { resolveRequestedModel } from "@/lib/models"; // checks the model id against an allow-list
 import { appTools } from "@/lib/tools"; // the functions the AI is allowed to call (see tools.ts)
+import { getPreferences } from "@/lib/food/data"; // saved food preferences = the planner's memory
+import { addDays, dayName, today, weekStartOf } from "@/lib/food/week"; // date helpers (weeks start Sunday)
 
 // The generated spec carries the library and its prompt options; generateSystemPrompt takes them separately.
 // `promptOptions` = extra instructions/examples shipped with the library.
@@ -71,12 +73,43 @@ const openai = createOpenAI({ baseURL: "https://api.thesys.dev/v1/embed", apiKey
 // HomeManage's own instructions, placed at the top of the system prompt
 // (`preamble`). This is where the AI learns WHO it is and WHEN to use your
 // data instead of guessing. The library's own rules and examples follow it.
-const HOMEMANAGE_PREAMBLE = `You are HomeManage, a friendly assistant for running the user's home.
-Right now you help with groceries and cooking: the pantry (what they have), the shopping list (what to buy) and their saved recipes.
-- The user's real data lives in the database. Use the tools to read it before answering questions about it, and to change it when asked. Never make up pantry contents, list items or saved recipes.
-- When suggesting what to cook, check the pantry first and prefer recipes that use what they have. Show what's missing and offer to add it to the shopping list.
-- After changing data, show the updated result (for example the new shopping list as a checklist grouped by store section).
-- Quantities: use metric units unless the user uses others.`;
+//
+// It's a FUNCTION (not a fixed string) because part of it changes on every
+// request: today's date and the preferences saved on the Settings page.
+// Putting the preferences here is what makes them a "memory": the model reads
+// them before every answer.
+function buildPreamble(preferences: string[], viewedWeek: string | null) {
+  const now = today();
+  const memory = preferences.length
+    ? preferences.map((p) => `- ${p}`).join("\n")
+    : "- (nothing saved yet)";
+
+  // The week the user has open on the Plan page. Without this, "change
+  // Thursday" would be read as THIS week's Thursday even when they're
+  // looking at next week.
+  const focus = viewedWeek
+    ? `The user is looking at the week of ${viewedWeek} to ${addDays(viewedWeek, 6)} on the Plan page. Unless they name another week, "the week", "this week" and day names (e.g. "Thursday") mean days in THAT week, so always pass weekStart: "${viewedWeek}" to get_week_plan, plan_meals and build_shopping_list.`
+    : "";
+
+  return `You are HomeManage's meal planner, a friendly assistant for a household of 2 people (the user and their partner).
+You help plan the week's meals, keep the shopping list and pantry up to date, and suggest recipes.
+
+Today is ${dayName(now, "long")} ${now}. Weeks start on Sunday; the current calendar week starts ${weekStartOf(now)}.
+${focus}
+
+What you know about how this household eats (their saved preferences — follow them):
+${memory}
+
+How to work:
+- Real data lives in the database. Read it with the tools before answering about it; never invent pantry contents, list items, plans or saved recipes.
+- Planning a week: suggest meals that fit their preferences and what's in the pantry, and ask before saving if anything is unclear. Once agreed, save them with plan_meals, then build the shopping list with build_shopping_list (check get_pantry first and skip what they have). Default to 2 servings.
+- After changing data, show a short summary of the result. The app shows the full shopping list and week plan on their own tabs, so don't repeat long lists in full.
+- Recipes from Instagram: when asked to pick recipes for the week (or "from Itai's page"), read posts with get_instagram_recipes. It defaults to the household's usual page; only pass a username if the user names a different page. Pick 2 recipes unless told otherwise, preferring main dishes that fit their preferences and that weren't planned in recent weeks. Build the shopping list from the ingredients in the captions (translate quantities to metric, merge duplicates, skip pantry items) and include each post's link.
+- If the user states a lasting preference ("we don't eat pork", "remember I like…"), save it with remember_preference.
+- Use metric units. Keep answers short and friendly.
+
+The app is used on a PHONE (about 390px wide): use one-column layouts (Card/Stack), short lists and narrow tables; avoid grids, wide tables and dense charts.`;
+}
 
 // Next.js calls this function for every POST request to /api/chat.
 export async function POST(req: Request) {
@@ -88,17 +121,24 @@ export async function POST(req: Request) {
   //               requests, so we send the history every time)
   //   - threadId: which conversation this is (used to save it)
   //   - model:    which model the user picked in the model switcher
+  //   - weekStart: (Plan page only) the week the user has open, YYYY-MM-DD
   // Everything is typed as optional/unknown because we can't trust the client:
   // we validate it below before using it.
   const {
     messages,
     threadId,
     model: requestedModel,
+    weekStart,
   } = (await req.json()) as {
     messages?: UIMessage[];
     threadId?: string;
     model?: unknown;
+    weekStart?: unknown;
   };
+
+  // Accept the week only if it's a real date; snap it to its Sunday.
+  const viewedWeek =
+    typeof weekStart === "string" && /^\d{4}-\d{2}-\d{2}$/.test(weekStart) ? weekStartOf(weekStart) : null;
 
   // ---------------------------------------------------------------------------
   // 2. Validate. Each check returns a 400 Bad Request with a clear message.
@@ -129,6 +169,15 @@ export async function POST(req: Request) {
     return badRequest("messages must end with a user message");
   }
 
+  // Load the saved food preferences (the planner's memory) for the prompt.
+  // If the database is unreachable, the chat still works, just without them.
+  const preferences = await getPreferences()
+    .then((rows) => rows.map((row) => row.text))
+    .catch((error) => {
+      console.error("Could not load food preferences:", error);
+      return [];
+    });
+
   // ---------------------------------------------------------------------------
   // 3 + 4. Call the model and stream the answer.
   // ---------------------------------------------------------------------------
@@ -145,7 +194,7 @@ export async function POST(req: Request) {
     system: generateSystemPrompt({
       cloud: true,
       library,
-      promptOptions: { ...promptOptions, preamble: HOMEMANAGE_PREAMBLE },
+      promptOptions: { ...promptOptions, preamble: buildPreamble(preferences, viewedWeek) },
     }),
 
     // The conversation history + new question.
@@ -159,7 +208,9 @@ export async function POST(req: Request) {
     // A "step" is one model call. If the model calls a tool, that's one step;
     // then it gets the tool result and answers (another step). Capping at 5
     // prevents endless tool-call loops.
-    stopWhen: stepCountIs(5),
+    // (Raised to 8 for the planner: read pantry -> plan meals -> build the
+    // shopping list -> answer can take several steps.)
+    stopWhen: stepCountIs(8),
 
     // If the user closes the tab or presses stop, `req.signal` fires and we
     // stop generating (saves tokens/money).

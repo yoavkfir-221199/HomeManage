@@ -42,21 +42,24 @@ export function weekDays(weekStart: ISODate): ISODate[] {
   return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 }
 
+// `locale` decides the language of day and month names: "en-GB" gives
+// "Sun" / "22 Nov", "he-IL" gives "יום א׳" / "22 בנוב׳".
+
 /** "Sun", "Mon", … */
-export function dayName(date: ISODate, style: "short" | "long" = "short"): string {
-  return parse(date).toLocaleDateString("en-US", { weekday: style, timeZone: "UTC" });
+export function dayName(date: ISODate, style: "short" | "long" = "short", locale = "en-GB"): string {
+  return parse(date).toLocaleDateString(locale, { weekday: style, timeZone: "UTC" });
 }
 
 /** "22 Nov" */
-export function shortDate(date: ISODate): string {
-  return parse(date).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+export function shortDate(date: ISODate, locale = "en-GB"): string {
+  return parse(date).toLocaleDateString(locale, { day: "numeric", month: "short", timeZone: "UTC" });
 }
 
 /** "22–28 Nov" (or "29 Nov – 5 Dec" across months) */
-export function weekLabel(weekStart: ISODate): string {
+export function weekLabel(weekStart: ISODate, locale = "en-GB"): string {
   const end = addDays(weekStart, 6);
-  const [startDay, startMonth] = shortDate(weekStart).split(" ");
-  const [endDay, endMonth] = shortDate(end).split(" ");
+  const [startDay, startMonth] = shortDate(weekStart, locale).split(" ");
+  const [endDay, endMonth] = shortDate(end, locale).split(" ");
   return startMonth === endMonth
     ? `${startDay}–${endDay} ${endMonth}`
     : `${startDay} ${startMonth} – ${endDay} ${endMonth}`;

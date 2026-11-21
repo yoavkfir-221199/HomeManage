@@ -29,56 +29,38 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { refreshFood } from "@/app/food/actions";
 import { CloseIcon, SendIcon, SparkleIcon } from "@/components/icons";
+import { useSettings } from "@/components/settings-provider";
 import { DEFAULT_MODEL } from "@/lib/models";
 
-// OpenUI's components, recolored to match HomeManage (see homemanage.css).
+// OpenUI's components, recolored to match HomeManage. The values are CSS
+// variables from homemanage.css, so the same theme works in light AND dark
+// mode: the variables change, this object doesn't.
 // Created once, outside the component, so it isn't rebuilt on every render.
 const plannerTheme = {
   intelligentFont: "var(--hm-font), system-ui, sans-serif",
-  intelligentCanvas: "#f9f7ed",
-  intelligentSurface: "#ffffff",
-  intelligentSurfaceStrong: "#f2efe2",
-  intelligentInk: "#205441",
-  intelligentInkHover: "#1a4535",
-  intelligentOnInk: "#ffffff",
-  intelligentMuted: "#74736a",
-  intelligentFaint: "#a9a79b",
-  intelligentBorder: "#ebe7d6",
-  intelligentBorderStrong: "#dcd7c2",
-  intelligentFocus: "#5d7afd",
-  intelligentInfo: "#5d7afd",
-  intelligentInfoSoft: "#e9edff",
-  intelligentSuccess: "#205441",
-  intelligentSuccessSoft: "#e3ede7",
+  intelligentCanvas: "var(--hm-bg)",
+  intelligentSurface: "var(--hm-surface)",
+  intelligentSurfaceStrong: "var(--hm-surface-muted)",
+  intelligentInk: "var(--hm-ink)",
+  intelligentInkHover: "var(--hm-ink)",
+  intelligentOnInk: "var(--hm-on-ink)",
+  intelligentMuted: "var(--hm-muted)",
+  intelligentFaint: "var(--hm-faint)",
+  intelligentBorder: "var(--hm-border)",
+  intelligentBorderStrong: "var(--hm-border)",
+  intelligentFocus: "var(--hm-accent)",
+  intelligentInfo: "var(--hm-accent)",
+  intelligentInfoSoft: "var(--hm-accent-soft)",
+  intelligentSuccess: "var(--hm-ink)",
+  intelligentSuccessSoft: "var(--hm-ink-soft)",
   intelligentRadiusSm: "10px",
   intelligentRadiusMd: "14px",
   intelligentRadiusLg: "20px",
   intelligentRadiusXl: "28px",
 };
 
-// Friendly names for the "behind the scenes" chips shown while tools run.
-const TOOL_LABELS: Record<string, string> = {
-  get_pantry: "Checking the pantry",
-  get_week_plan: "Reading the week plan",
-  plan_meals: "Saving meals to the plan",
-  remove_planned_meal: "Removing a meal",
-  get_instagram_recipes: "Reading recipes on Instagram",
-  build_shopping_list: "Building the shopping list",
-  add_to_shopping_list: "Updating the shopping list",
-  get_shopping_list: "Reading the shopping list",
-  update_shopping_list: "Updating the shopping list",
-  remember_preference: "Saving to memory",
-  find_recipes: "Looking through saved recipes",
-  save_recipe: "Saving the recipe",
-};
-
-const SUGGESTIONS = [
-  "Plan our dinners for this week",
-  "Something quick for tonight with what we have",
-  "Plan a week of healthy lunches to take to work",
-];
-
 export function PlannerChat({ weekStart, weekLabel }: { weekStart: string; weekLabel: string }) {
+  const { t, lang, mode } = useSettings();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
 
@@ -86,12 +68,13 @@ export function PlannerChat({ weekStart, weekLabel }: { weekStart: string; weekL
   const [threadId] = useState(() => crypto.randomUUID());
 
   // The transport says WHERE and HOW to send messages. `body` adds our extra
-  // fields to every request: the route needs `threadId` and `model`, and
-  // `weekStart` tells the planner which week is open on screen.
+  // fields to every request: the route needs `threadId` and `model`,
+  // `weekStart` tells the planner which week is open on screen, and `lang`
+  // which language to answer in.
   const transport = useMemo(
     () =>
-      new DefaultChatTransport({ api: "/api/chat", body: { threadId, model: DEFAULT_MODEL, weekStart } }),
-    [threadId, weekStart],
+      new DefaultChatTransport({ api: "/api/chat", body: { threadId, model: DEFAULT_MODEL, weekStart, lang } }),
+    [threadId, weekStart, lang],
   );
 
   const { messages, sendMessage, status, error, stop } = useChat({
@@ -130,17 +113,17 @@ export function PlannerChat({ weekStart, weekLabel }: { weekStart: string; weekL
       <input
         value={input}
         onChange={(e) => setInput(e.target.value)}
-        placeholder={open ? "Reply to the planner…" : "What do you want to eat this week?"}
-        aria-label="Message the planner"
+        placeholder={open ? t.planner.replyPlaceholder : t.planner.placeholder}
+        aria-label={t.planner.messageLabel}
         // Tapping the docked bar with an existing conversation reopens it.
         onFocus={() => messages.length > 0 && setOpen(true)}
       />
       {busy ? (
-        <button type="button" className="hm-send" onClick={() => stop()} aria-label="Stop">
+        <button type="button" className="hm-send" onClick={() => stop()} aria-label={t.planner.stop}>
           <CloseIcon />
         </button>
       ) : (
-        <button type="submit" className="hm-send" disabled={!input.trim()} aria-label="Send">
+        <button type="submit" className="hm-send" disabled={!input.trim()} aria-label={t.planner.send}>
           <SendIcon />
         </button>
       )}
@@ -159,16 +142,16 @@ export function PlannerChat({ weekStart, weekLabel }: { weekStart: string; weekL
       {open && (
         <>
           <div className="hm-sheet-backdrop" onClick={() => setOpen(false)} />
-          <section className="hm-sheet" role="dialog" aria-label="Meal planner">
+          <section className="hm-sheet" role="dialog" aria-label={t.planner.dialogLabel}>
             <header className="hm-sheet-header">
               <span className="hm-ai-dot">
                 <SparkleIcon />
               </span>
               <div style={{ flex: 1 }}>
-                <p className="hm-section-title">Planner</p>
-                <p className="hm-muted hm-small">Week of {weekLabel}</p>
+                <p className="hm-section-title">{t.planner.title}</p>
+                <p className="hm-muted hm-small">{t.planner.weekOf(weekLabel)}</p>
               </div>
-              <button type="button" className="hm-icon-btn" onClick={() => setOpen(false)} aria-label="Close">
+              <button type="button" className="hm-icon-btn" onClick={() => setOpen(false)} aria-label={t.planner.close}>
                 <CloseIcon />
               </button>
             </header>
@@ -176,9 +159,9 @@ export function PlannerChat({ weekStart, weekLabel }: { weekStart: string; weekL
             <div className="hm-sheet-body">
               {messages.length === 0 && (
                 <div>
-                  <p className="hm-muted">Tell me what you feel like eating, or start from one of these:</p>
+                  <p className="hm-muted">{t.planner.intro}</p>
                   <div className="hm-suggestions">
-                    {SUGGESTIONS.map((s) => (
+                    {t.planner.suggestions.map((s) => (
                       <button key={s} type="button" className="hm-suggestion" onClick={() => send(s)}>
                         {s}
                       </button>
@@ -187,7 +170,7 @@ export function PlannerChat({ weekStart, weekLabel }: { weekStart: string; weekL
                 </div>
               )}
 
-              <ThemeProvider mode="light" lightTheme={plannerTheme}>
+              <ThemeProvider mode={mode} lightTheme={plannerTheme}>
                 {messages.map((message, index) => (
                   <ChatMessage
                     key={message.id}
@@ -198,8 +181,8 @@ export function PlannerChat({ weekStart, weekLabel }: { weekStart: string; weekL
                 ))}
               </ThemeProvider>
 
-              {status === "submitted" && <span className="hm-tool-chip running">Thinking</span>}
-              {error && <p className="hm-error">Something went wrong: {error.message}</p>}
+              {status === "submitted" && <span className="hm-tool-chip running">{t.planner.thinking}</span>}
+              {error && <p className="hm-error">{t.planner.error(error.message)}</p>}
               <div ref={endRef} />
             </div>
 
@@ -211,13 +194,31 @@ export function PlannerChat({ weekStart, weekLabel }: { weekStart: string; weekL
   );
 }
 
-// OpenUI Lang programs start with `root = …`, sometimes inside a ``` code
-// fence. While a reply is still streaming we may only have "ro" or "```op"
-// so far, so beginnings of those count too.
-function looksLikeOpenUILang(text: string) {
-  const start = text.trimStart().replace(/^```[\w-]*\s*/, "");
-  if (start.startsWith("root") || "root".startsWith(start)) return true;
-  return text.trimStart().startsWith("`") && start === "";
+// Split a reply into plain text and OpenUI Lang code.
+//
+// Normally the model answers with ONLY a program that starts with `root = …`.
+// But sometimes it writes a sentence first, and wraps the program in a ```
+// code fence, e.g.:  "Here's a recipe: ```openui-lang root = Col([…]) ```"
+// Sending all of that to the Renderer fails, and showing it all as text shows
+// raw code, so we cut it at the point where the program starts.
+const CODE_START = /```[\w-]*\s*(?=root\s*=)|(?:^|\n)\s*(?=root\s*=)/;
+
+function splitReply(content: string): { text: string; code: string } {
+  const match = CODE_START.exec(content);
+  if (match) {
+    const text = content.slice(0, match.index).trim();
+    const code = content
+      .slice(match.index + match[0].length)
+      .replace(/```\s*$/, "") // closing fence
+      .trim();
+    return { text, code };
+  }
+  // Still streaming and we only have the very beginning ("ro", "```open"):
+  // show nothing yet rather than flashing those characters as text.
+  const start = content.trimStart();
+  if ("root".startsWith(start) || /^```[\w-]*\s*r?o?o?t?$/.test(start)) return { text: "", code: "" };
+  // Plain text only. Drop a half-arrived fence at the end ("…: ``").
+  return { text: content.replace(/`{1,3}[\w-]*\s*$/, "").trim(), code: "" };
 }
 
 // One message. User messages are plain bubbles; AI messages are made of
@@ -232,6 +233,7 @@ function ChatMessage({
   streaming: boolean;
   onFollowUp: (text: string) => void;
 }) {
+  const { t } = useSettings();
   if (message.role === "user") {
     const text = message.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
     return <div className="hm-msg-user">{text}</div>;
@@ -247,7 +249,7 @@ function ChatMessage({
           return (
             <p key={i} style={{ margin: "0 0 8px" }}>
               <span className={`hm-tool-chip${done ? "" : " running"}`}>
-                {TOOL_LABELS[toolName] ?? toolName.replaceAll("_", " ")}
+                {t.planner.tools[toolName] ?? toolName.replaceAll("_", " ")}
                 {done && " ✓"}
               </span>
             </p>
@@ -259,30 +261,31 @@ function ChatMessage({
           // show it as a normal paragraph instead of sending it to the Renderer.
           // Gateway wraps replies in marker lines (]]>openui:content … ]]>openui:end);
           // parseMessage strips them so we can look at the actual content.
-          const content = parseMessage(part.text, { streaming }).content.trim();
-          if (!content) return null;
-          if (!looksLikeOpenUILang(content)) {
-            return (
-              <p key={i} className="hm-muted" style={{ fontSize: 15, margin: "0 0 8px" }}>
-                {content}
-              </p>
-            );
-          }
+          const { text, code } = splitReply(parseMessage(part.text, { streaming }).content);
+          if (!text && !code) return null;
           return (
-            <Renderer
-              key={i}
-              response={part.text}
-              library={library}
-              isStreaming={streaming}
-              // Buttons in the AI's UI (e.g. "Yes, save it") continue the chat.
-              onAction={(event) => {
-                if (event.type === "continue_conversation" && event.humanFriendlyMessage) {
-                  onFollowUp(event.humanFriendlyMessage);
-                } else if (event.type === "open_url" && typeof event.params.url === "string") {
-                  window.open(event.params.url, "_blank", "noopener,noreferrer");
-                }
-              }}
-            />
+            <div key={i}>
+              {text && (
+                <p className="hm-muted" style={{ fontSize: 15, margin: "0 0 8px" }}>
+                  {text}
+                </p>
+              )}
+              {code && (
+                <Renderer
+                  response={code}
+                  library={library}
+                  isStreaming={streaming}
+                  // Buttons in the AI's UI (e.g. "Yes, save it") continue the chat.
+                  onAction={(event) => {
+                    if (event.type === "continue_conversation" && event.humanFriendlyMessage) {
+                      onFollowUp(event.humanFriendlyMessage);
+                    } else if (event.type === "open_url" && typeof event.params.url === "string") {
+                      window.open(event.params.url, "_blank", "noopener,noreferrer");
+                    }
+                  }}
+                />
+              )}
+            </div>
           );
         }
         return null;

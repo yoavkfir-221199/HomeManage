@@ -78,7 +78,7 @@ const openai = createOpenAI({ baseURL: "https://api.thesys.dev/v1/embed", apiKey
 // request: today's date and the preferences saved on the Settings page.
 // Putting the preferences here is what makes them a "memory": the model reads
 // them before every answer.
-function buildPreamble(preferences: string[], viewedWeek: string | null) {
+function buildPreamble(preferences: string[], viewedWeek: string | null, lang: "en" | "he") {
   const now = today();
   const memory = preferences.length
     ? preferences.map((p) => `- ${p}`).join("\n")
@@ -91,11 +91,20 @@ function buildPreamble(preferences: string[], viewedWeek: string | null) {
     ? `The user is looking at the week of ${viewedWeek} to ${addDays(viewedWeek, 6)} on the Plan page. Unless they name another week, "the week", "this week" and day names (e.g. "Thursday") mean days in THAT week, so always pass weekStart: "${viewedWeek}" to get_week_plan, plan_meals and build_shopping_list.`
     : "";
 
+  // The language chosen on the Settings page. Store-section categories stay
+  // English keys because the app translates them itself.
+  const language =
+    lang === "he"
+      ? `LANGUAGE: The user uses the app in Hebrew. Always reply in Hebrew, and write meal titles, item names, units (גרם, ק״ג, מ״ל, ליטר, יח׳, חבילה, צרור…) and saved preferences in Hebrew. Keep the "category" values of items as the English keys listed in the tools (produce, dairy, …): the app translates them. Hebrew is right-to-left; keep layouts simple. The Hebrew text goes INSIDE the OpenUI Lang components (Title, Text, Badge…): the reply itself is still only the OpenUI Lang program starting with "root =", with no sentence before it and no \`\`\` code fence.`
+      : "LANGUAGE: Reply in English.";
+
   return `You are HomeManage's meal planner, a friendly assistant for a household of 2 people (the user and their partner).
 You help plan the week's meals, keep the shopping list and pantry up to date, and suggest recipes.
 
 Today is ${dayName(now, "long")} ${now}. Weeks start on Sunday; the current calendar week starts ${weekStartOf(now)}.
 ${focus}
+
+${language}
 
 What you know about how this household eats (their saved preferences — follow them):
 ${memory}
@@ -122,6 +131,7 @@ export async function POST(req: Request) {
   //   - threadId: which conversation this is (used to save it)
   //   - model:    which model the user picked in the model switcher
   //   - weekStart: (Plan page only) the week the user has open, YYYY-MM-DD
+  //   - lang:     "en" or "he", from the Settings page
   // Everything is typed as optional/unknown because we can't trust the client:
   // we validate it below before using it.
   const {
@@ -129,11 +139,13 @@ export async function POST(req: Request) {
     threadId,
     model: requestedModel,
     weekStart,
+    lang,
   } = (await req.json()) as {
     messages?: UIMessage[];
     threadId?: string;
     model?: unknown;
     weekStart?: unknown;
+    lang?: unknown;
   };
 
   // Accept the week only if it's a real date; snap it to its Sunday.
@@ -194,7 +206,7 @@ export async function POST(req: Request) {
     system: generateSystemPrompt({
       cloud: true,
       library,
-      promptOptions: { ...promptOptions, preamble: buildPreamble(preferences, viewedWeek) },
+      promptOptions: { ...promptOptions, preamble: buildPreamble(preferences, viewedWeek, lang === "he" ? "he" : "en") },
     }),
 
     // The conversation history + new question.

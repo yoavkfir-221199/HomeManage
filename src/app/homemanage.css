@@ -26,13 +26,21 @@
   --hm-lime: #e8f4ba; /* highlights, "today" */
   --hm-danger: #cc3366;
   --hm-danger-soft: #fbe8ef;
+  --hm-on-ink: #ffffff; /* text on deep-green buttons */
+  --hm-on-accent: #ffffff; /* text on blue buttons */
+  --hm-nav-bg: rgba(249, 247, 237, 0.92);
+  --hm-backdrop: rgba(32, 46, 40, 0.28);
+  --hm-shadow-color-1: rgba(32, 84, 65, 0.04);
+  --hm-shadow-color-2: rgba(32, 84, 65, 0.08);
+  --hm-shadow-color-3: rgba(32, 84, 65, 0.14);
+  color-scheme: light;
 
   /* Shape */
   --hm-radius-sm: 12px;
   --hm-radius: 20px;
   --hm-radius-lg: 28px;
   --hm-pill: 999px;
-  --hm-shadow: 0 1px 2px rgba(32, 84, 65, 0.04), 0 8px 24px rgba(32, 84, 65, 0.06);
+  --hm-shadow: 0 1px 2px var(--hm-shadow-color-1), 0 8px 24px var(--hm-shadow-color-2);
 
   /* Layout */
   --hm-max-width: 480px;
@@ -133,7 +141,7 @@ body.hm-body {
 .hm-tab[aria-current="page"] {
   background: var(--hm-surface);
   color: var(--hm-ink);
-  box-shadow: 0 1px 3px rgba(32, 84, 65, 0.1);
+  box-shadow: 0 1px 3px var(--hm-shadow-color-2);
 }
 
 /* ---- Bottom navigation (sections) ---------------------------------------- */
@@ -144,7 +152,7 @@ body.hm-body {
   right: 0;
   bottom: 0;
   z-index: 20;
-  background: rgba(249, 247, 237, 0.92);
+  background: var(--hm-nav-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-top: 1px solid var(--hm-border);
@@ -235,7 +243,7 @@ body.hm-body {
   font-size: 15px;
   font-weight: 600;
   background: var(--hm-ink);
-  color: #fff;
+  color: var(--hm-on-ink);
   transition: opacity 0.15s, transform 0.1s;
 }
 
@@ -394,7 +402,7 @@ body.hm-body {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: #fff;
+  color: var(--hm-on-ink);
   transition: background 0.15s, border-color 0.15s;
 }
 
@@ -555,10 +563,11 @@ body.hm-body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 6px 6px 18px;
+  padding-block: 6px;
+  padding-inline: 18px 6px;
   border-radius: var(--hm-pill);
   background: var(--hm-surface);
-  box-shadow: 0 4px 20px rgba(32, 84, 65, 0.14);
+  box-shadow: 0 4px 20px var(--hm-shadow-color-3);
   border: 1.5px solid var(--hm-accent-soft);
 }
 
@@ -580,7 +589,7 @@ body.hm-body {
   height: 40px;
   border-radius: var(--hm-pill);
   background: var(--hm-accent);
-  color: #fff;
+  color: var(--hm-on-accent);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -600,7 +609,7 @@ body.hm-body {
   position: fixed;
   inset: 0;
   z-index: 30;
-  background: rgba(32, 46, 40, 0.28);
+  background: var(--hm-backdrop);
   animation: hm-fade 0.2s ease;
 }
 
@@ -624,7 +633,8 @@ body.hm-body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 14px 12px 10px var(--hm-gutter);
+  padding-block: 14px 10px;
+  padding-inline: var(--hm-gutter) 12px;
   border-bottom: 1px solid var(--hm-border);
 }
 
@@ -662,9 +672,10 @@ body.hm-body {
   align-self: flex-end;
   max-width: 85%;
   background: var(--hm-ink);
-  color: #fff;
+  color: var(--hm-on-ink);
   padding: 10px 14px;
-  border-radius: 18px 18px 4px 18px;
+  border-radius: 18px;
+  border-end-end-radius: 4px;
   font-size: 15px;
   line-height: 1.4;
   white-space: pre-wrap;
@@ -704,7 +715,7 @@ body.hm-body {
 }
 
 .hm-suggestion {
-  text-align: left;
+  text-align: start;
   padding: 12px 16px;
   border-radius: var(--hm-radius);
   background: var(--hm-surface);
@@ -719,6 +730,115 @@ body.hm-body {
   background: var(--hm-danger-soft);
   border-radius: var(--hm-radius-sm);
   padding: 10px 12px;
+}
+
+/* ---- Dark mode -------------------------------------------------------------
+   Same roles, darker values: a deep green-black background, soft green for
+   headings and buttons, and a lighter blue accent. Applied when the theme is
+   "dark", or "system" (Auto) and the phone is in dark mode.
+   ------------------------------------------------------------------------- */
+
+:root[data-theme="dark"] {
+  --hm-bg: #121613;
+  --hm-surface: #1b211d;
+  --hm-surface-muted: #252c27;
+  --hm-ink: #9fd3b5;
+  --hm-ink-soft: #24382d;
+  --hm-text: #e9e7de;
+  --hm-muted: #a5a99f;
+  --hm-faint: #6e7369;
+  --hm-border: #2c342f;
+  --hm-accent: #8ea2ff;
+  --hm-accent-soft: #252b47;
+  --hm-lime: #3b4a1e;
+  --hm-danger: #ff7aa2;
+  --hm-danger-soft: #3a1f2a;
+  --hm-on-ink: #0f2219;
+  --hm-on-accent: #10153a;
+  --hm-nav-bg: rgba(18, 22, 19, 0.9);
+  --hm-backdrop: rgba(0, 0, 0, 0.5);
+  --hm-shadow-color-1: rgba(0, 0, 0, 0.2);
+  --hm-shadow-color-2: rgba(0, 0, 0, 0.25);
+  --hm-shadow-color-3: rgba(0, 0, 0, 0.4);
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] {
+    --hm-bg: #121613;
+    --hm-surface: #1b211d;
+    --hm-surface-muted: #252c27;
+    --hm-ink: #9fd3b5;
+    --hm-ink-soft: #24382d;
+    --hm-text: #e9e7de;
+    --hm-muted: #a5a99f;
+    --hm-faint: #6e7369;
+    --hm-border: #2c342f;
+    --hm-accent: #8ea2ff;
+    --hm-accent-soft: #252b47;
+    --hm-lime: #3b4a1e;
+    --hm-danger: #ff7aa2;
+    --hm-danger-soft: #3a1f2a;
+    --hm-on-ink: #0f2219;
+    --hm-on-accent: #10153a;
+    --hm-nav-bg: rgba(18, 22, 19, 0.9);
+    --hm-backdrop: rgba(0, 0, 0, 0.5);
+    --hm-shadow-color-1: rgba(0, 0, 0, 0.2);
+    --hm-shadow-color-2: rgba(0, 0, 0, 0.25);
+    --hm-shadow-color-3: rgba(0, 0, 0, 0.4);
+    color-scheme: dark;
+  }
+}
+
+/* ---- Right-to-left (Hebrew) ------------------------------------------------
+   Most layout flips by itself because we use flexbox and "start/end"
+   properties. Arrows that mean "previous/next" must be mirrored by hand.
+   ------------------------------------------------------------------------- */
+
+[dir="rtl"] .hm-flip {
+  transform: scaleX(-1);
+}
+
+/* Uppercase + letter spacing is a Latin-script style; Hebrew has no capitals. */
+[dir="rtl"] .hm-group-label,
+[dir="rtl"] .hm-meal-kind {
+  letter-spacing: 0;
+}
+
+/* ---- Settings: choice buttons -------------------------------------------- */
+
+.hm-choice-group {
+  display: flex;
+  gap: 8px;
+}
+
+.hm-choice {
+  flex: 1;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 52px;
+  padding: 10px 8px;
+  border-radius: var(--hm-radius);
+  background: var(--hm-surface-muted);
+  color: var(--hm-muted);
+  font-size: 15px;
+  font-weight: 500;
+  border: 1.5px solid transparent;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.hm-choice svg {
+  width: 22px;
+  height: 22px;
+}
+
+.hm-choice[aria-checked="true"] {
+  background: var(--hm-ink-soft);
+  color: var(--hm-ink);
+  border-color: var(--hm-ink);
 }
 
 @keyframes hm-fade {

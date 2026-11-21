@@ -11,18 +11,20 @@ import Link from "next/link";
 import { WeekPlan } from "@/components/food/week-plan";
 import { getPastPlans } from "@/lib/food/data";
 import { weekLabel } from "@/lib/food/week";
+import { getI18n } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
 export default async function HistoryPage() {
+  const { t, locale } = await getI18n();
   const weeks = (await getPastPlans()).filter((week) => week.meals.length > 0);
 
   if (!weeks.length) {
     return (
       <section className="hm-card">
         <div className="hm-empty">
-          <strong>No history yet</strong>
-          Weeks you plan show up here once they&apos;re over.
+          <strong>{t.history.emptyTitle}</strong>
+          {t.history.emptyText}
         </div>
       </section>
     );
@@ -33,9 +35,9 @@ export default async function HistoryPage() {
       {weeks.map((week) => (
         <section className="hm-card" key={week.id}>
           <div className="hm-card-header">
-            <h2 className="hm-section-title">{weekLabel(week.weekStart)}</h2>
+            <h2 className="hm-section-title">{weekLabel(week.weekStart, locale)}</h2>
             <Link href={`/food/plan?week=${week.weekStart}`} className="hm-link-btn">
-              Open
+              {t.history.open}
             </Link>
           </div>
           <WeekPlan weekStart={week.weekStart} meals={week.meals} compact />

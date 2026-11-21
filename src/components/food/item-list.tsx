@@ -14,6 +14,7 @@
 import { useOptimistic, useState, useTransition } from "react";
 
 import { CheckIcon, PencilIcon, PlusIcon, TrashIcon } from "@/components/icons";
+import { useSettings } from "@/components/settings-provider";
 
 export type ListItem = {
   id: number;
@@ -45,9 +46,12 @@ export function formatQty(quantity: number | null, unit: string | null) {
   return unit ? `${n} ${unit}` : String(n);
 }
 
-/** Read "2 kg tomatoes" / "tomatoes 2kg" / "milk" into name + quantity + unit. */
+/** Read "2 kg tomatoes" / "tomatoes 2kg" / "2 ק״ג עגבניות" / "milk" into name + quantity + unit. */
 export function parseQuickAdd(text: string) {
-  const units = "kg|g|mg|l|ml|pcs|pc|pack|packs|bunch|can|cans|cup|cups|tbsp|tsp|dozen";
+  const units =
+    "kg|g|mg|l|ml|pcs|pc|pack|packs|bunch|can|cans|cup|cups|tbsp|tsp|dozen|" +
+    // Hebrew: kg, gram, liter, ml, units, pack(s), bunch, can
+    "ק[\"״]?ג|גרם|ג׳|ליטר|ל׳|מ[\"״]?ל|יח[׳']?|יחידות|חבילה|חבילות|צרור|קופסה|קופסאות";
   const lead = text.match(new RegExp(`^(\\d+(?:[.,]\\d+)?)\\s*(${units})?\\s+(.+)$`, "i"));
   const tail = text.match(new RegExp(`^(.+?)\\s+(\\d+(?:[.,]\\d+)?)\\s*(${units})?$`, "i"));
   const toNum = (s: string) => Number(s.replace(",", "."));
@@ -58,6 +62,7 @@ export function parseQuickAdd(text: string) {
 
 export function ItemList(props: Props) {
   const { items, checkable } = props;
+  const { t } = useSettings();
   const [, startTransition] = useTransition();
 
   // Optimistic copy of the list: changes show instantly, then the real data
@@ -96,14 +101,17 @@ export function ItemList(props: Props) {
   }
 
   // Group by store section: unbought items by category, bought ones at the end.
+  // Categories are stored as English keys ("produce"); the label is translated.
+  const CART = "__cart";
   const groups = new Map<string, ListItem[]>();
   for (const item of optimisticItems) {
-    const key = checkable && item.checked ? "In the cart" : item.category || "Other";
+    const key = checkable && item.checked ? CART : (item.category || "other").toLowerCase();
     groups.set(key, [...(groups.get(key) ?? []), item]);
   }
   const sortedGroups = [...groups.entries()].sort(([a], [b]) =>
-    a === "In the cart" ? 1 : b === "In the cart" ? -1 : a === "Other" ? 1 : b === "Other" ? -1 : a.localeCompare(b),
+    a === CART ? 1 : b === CART ? -1 : a === "other" ? 1 : b === "other" ? -1 : a.localeCompare(b),
   );
+  const groupLabel = (key: string) => (key === CART ? t.list.inCart : (t.list.categories[key] ?? key));
 
   return (
     <div>
@@ -115,7 +123,7 @@ export function ItemList(props: Props) {
       ) : (
         sortedGroups.map(([group, groupItems]) => (
           <div className="hm-group" key={group}>
-            <p className="hm-group-label">{group}</p>
+            <p className="hm-group-label">{groupLabel(group)}</p>
             {groupItems.map((item) =>
               editingId === item.id ? (
                 <EditRow
@@ -134,7 +142,7 @@ export function ItemList(props: Props) {
                       type="button"
                       role="checkbox"
                       aria-checked={!!item.checked}
-                      aria-label={`Bought ${item.name}`}
+                      aria-label={t.list.bought(item.name)}
                       className="hm-check"
                       onClick={() => update(item.id, { checked: !item.checked })}
                     >
@@ -148,7 +156,7 @@ export function ItemList(props: Props) {
                   <button
                     type="button"
                     className="hm-icon-btn"
-                    aria-label={`Edit ${item.name}`}
+                    aria-label={t.list.edit(item.name)}
                     onClick={() => setEditingId(item.id)}
                   >
                     <PencilIcon />
@@ -156,7 +164,7 @@ export function ItemList(props: Props) {
                   <button
                     type="button"
                     className="hm-icon-btn"
-                    aria-label={`Delete ${item.name}`}
+                    aria-label={t.list.remove(item.name)}
                     onClick={() => remove(item.id)}
                   >
                     <TrashIcon />
@@ -174,9 +182,9 @@ export function ItemList(props: Props) {
           value={newItem}
           onChange={(e) => setNewItem(e.target.value)}
           placeholder={props.addPlaceholder}
-          aria-label="New item"
+          aria-label={t.list.newItem}
         />
-        <button type="submit" className="hm-send" disabled={!newItem.trim()} aria-label="Add item">
+        <button type="submit" className="hm-send" disabled={!newItem.trim()} aria-label={t.list.addItem}>
           <PlusIcon />
         </button>
       </form>
@@ -194,6 +202,7 @@ function EditRow({
   onSave: (changes: Changes) => void;
   onCancel: () => void;
 }) {
+  const { t } = useSettings();
   const [name, setName] = useState(item.name);
   const [quantity, setQuantity] = useState(item.quantity?.toString() ?? "");
   const [unit, setUnit] = useState(item.unit ?? "");
@@ -211,22 +220,22 @@ function EditRow({
         });
       }}
     >
-      <input className="hm-input" value={name} onChange={(e) => setName(e.target.value)} aria-label="Name" autoFocus />
+      <input className="hm-input" value={name} onChange={(e) => setName(e.target.value)} aria-label={t.list.name} autoFocus />
       <input
         className="hm-input"
         value={quantity}
         onChange={(e) => setQuantity(e.target.value)}
         inputMode="decimal"
-        placeholder="Qty"
-        aria-label="Quantity"
+        placeholder={t.list.qty}
+        aria-label={t.list.quantity}
       />
-      <input className="hm-input" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="Unit" aria-label="Unit" />
+      <input className="hm-input" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder={t.list.unit} aria-label={t.list.unit} />
       <div className="hm-edit-actions">
         <button type="button" className="hm-btn hm-btn-quiet hm-btn-small" onClick={onCancel}>
-          Cancel
+          {t.list.cancel}
         </button>
         <button type="submit" className="hm-btn hm-btn-small">
-          Save
+          {t.list.save}
         </button>
       </div>
     </form>

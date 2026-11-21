@@ -18,12 +18,14 @@ import { PlannerChat } from "@/components/food/planner-chat";
 import { WeekPlan } from "@/components/food/week-plan";
 import { getShoppingList, getWeekPlan } from "@/lib/food/data";
 import { addDays, today, weekLabel, weekStartOf } from "@/lib/food/week";
+import { getI18n } from "@/lib/settings";
 
 // Always render with fresh data (never cache this page).
 export const dynamic = "force-dynamic";
 
 export default async function PlanPage({ searchParams }: { searchParams: Promise<{ week?: string }> }) {
   const { week } = await searchParams;
+  const { t, locale } = await getI18n();
   const now = today();
   const thisWeek = weekStartOf(now);
   // No week in the URL: show this week, except on Friday and Saturday, when the
@@ -37,42 +39,49 @@ export default async function PlanPage({ searchParams }: { searchParams: Promise
   const boughtCount = shoppingList.filter((item) => item.checked).length;
 
   const relative =
-    weekStart === thisWeek ? "This week" : weekStart === addDays(thisWeek, 7) ? "Next week" : weekStart < thisWeek ? "Past week" : "Later";
+    weekStart === thisWeek
+      ? t.week.thisWeek
+      : weekStart === addDays(thisWeek, 7)
+        ? t.week.nextWeek
+        : weekStart < thisWeek
+          ? t.week.pastWeek
+          : t.week.later;
 
   return (
     <div className="hm-stack">
       <section className="hm-card">
         <div className="hm-week-nav">
-          <Link href={`/food/plan?week=${addDays(weekStart, -7)}`} className="hm-icon-btn" aria-label="Previous week">
-            <ChevronLeftIcon />
+          {/* hm-flip mirrors the arrows in Hebrew (right-to-left) */}
+          <Link href={`/food/plan?week=${addDays(weekStart, -7)}`} className="hm-icon-btn" aria-label={t.week.previous}>
+            <ChevronLeftIcon className="hm-flip" />
           </Link>
           <div style={{ textAlign: "center" }}>
             <p className="hm-section-title">{relative}</p>
-            <p className="hm-muted hm-small">{weekLabel(weekStart)}</p>
+            <p className="hm-muted hm-small">{weekLabel(weekStart, locale)}</p>
           </div>
-          <Link href={`/food/plan?week=${addDays(weekStart, 7)}`} className="hm-icon-btn" aria-label="Next week">
-            <ChevronRightIcon />
+          <Link href={`/food/plan?week=${addDays(weekStart, 7)}`} className="hm-icon-btn" aria-label={t.week.next}>
+            <ChevronRightIcon className="hm-flip" />
           </Link>
         </div>
         {plan?.meals.length ? (
           <WeekPlan weekStart={weekStart} meals={plan.meals} today={now} />
         ) : (
           <div className="hm-empty">
-            <strong>No meals planned yet</strong>
-            Tell the planner below what you feel like eating.
+            <strong>{t.week.noMealsTitle}</strong>
+            {t.week.noMealsText}
           </div>
         )}
       </section>
 
       <section className="hm-card">
         <div className="hm-card-header">
-          <h2 className="hm-section-title">Shopping list</h2>
+          <h2 className="hm-section-title">{t.list.shoppingList}</h2>
           {boughtCount > 0 && (
             // A plain form calling a server action: works even before the
             // page's JavaScript has loaded.
             <form action={clearBoughtItems}>
               <button type="submit" className="hm-link-btn">
-                Clear {boughtCount} bought
+                {t.list.clearBought(boughtCount)}
               </button>
             </form>
           )}
@@ -83,13 +92,13 @@ export default async function PlanPage({ searchParams }: { searchParams: Promise
           onAdd={addShoppingItem}
           onUpdate={updateShoppingItem}
           onDelete={deleteShoppingItem}
-          addPlaceholder="Add an item, e.g. 2 kg tomatoes"
-          emptyTitle="Your list is empty"
-          emptyText="Plan the week and the planner will fill it, or add items here."
+          addPlaceholder={t.list.addShopping}
+          emptyTitle={t.list.shoppingEmptyTitle}
+          emptyText={t.list.shoppingEmptyText}
         />
       </section>
 
-      <PlannerChat weekStart={weekStart} weekLabel={weekLabel(weekStart)} />
+      <PlannerChat weekStart={weekStart} weekLabel={weekLabel(weekStart, locale)} />
     </div>
   );
 }

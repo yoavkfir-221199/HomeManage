@@ -15,6 +15,7 @@ import { useOptimistic, useState, useTransition } from "react";
 
 import { CheckIcon, PencilIcon, PlusIcon, TrashIcon } from "@/components/icons";
 import { useSettings } from "@/components/settings-provider";
+import { normalizeUnit } from "@/lib/food/units";
 
 export type ListItem = {
   id: number;
@@ -39,11 +40,16 @@ type Props = {
   emptyText: string;
 };
 
-/** "500 g", "6 pcs", "1.5 l" — or nothing when there's no amount. */
-export function formatQty(quantity: number | null, unit: string | null) {
-  if (quantity == null) return unit ?? "";
+/**
+ * "500 g", "6 pcs", "1.5 l" (or "500 גרם", "6 יח׳" in Hebrew), or nothing when
+ * there's no amount. `units` translates the stored unit into the app language.
+ */
+export function formatQty(quantity: number | null, unit: string | null, units: Record<string, string> = {}) {
+  const standard = normalizeUnit(unit);
+  const label = standard ? (units[standard] ?? standard) : null;
+  if (quantity == null) return label ?? "";
   const n = Number.isInteger(quantity) ? quantity : Math.round(quantity * 100) / 100;
-  return unit ? `${n} ${unit}` : String(n);
+  return label ? `${n} ${label}` : String(n);
 }
 
 /** Read "2 kg tomatoes" / "tomatoes 2kg" / "2 ק״ג עגבניות" / "milk" into name + quantity + unit. */
@@ -151,7 +157,7 @@ export function ItemList(props: Props) {
                   )}
                   <span className="hm-item-name">{item.name}</span>
                   {(item.quantity != null || item.unit) && (
-                    <span className="hm-qty">{formatQty(item.quantity, item.unit)}</span>
+                    <span className="hm-qty">{formatQty(item.quantity, item.unit, t.list.units)}</span>
                   )}
                   <button
                     type="button"
@@ -205,7 +211,9 @@ function EditRow({
   const { t } = useSettings();
   const [name, setName] = useState(item.name);
   const [quantity, setQuantity] = useState(item.quantity?.toString() ?? "");
-  const [unit, setUnit] = useState(item.unit ?? "");
+  // Show the unit in the app's language while editing (saved back in standard form).
+  const standardUnit = normalizeUnit(item.unit);
+  const [unit, setUnit] = useState(standardUnit ? (t.list.units[standardUnit] ?? standardUnit) : "");
 
   return (
     <form

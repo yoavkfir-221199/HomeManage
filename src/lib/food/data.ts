@@ -16,6 +16,10 @@ import { and, asc, desc, eq, gte, ilike, inArray, isNull, lt } from "drizzle-orm
 
 import { getDb, schema } from "@/lib/db";
 import { type ISODate, type Meal, MEALS, weekStartOf } from "@/lib/food/week";
+import { translateTexts } from "@/lib/i18n/translate";
+import { normalizeUnit } from "@/lib/food/units";
+
+export { normalizeUnit };
 
 const { foodPreferences, mealPlans, pantryItems, plannedMeals, shoppingListItems } = schema;
 
@@ -127,6 +131,7 @@ export async function getPlannedWeekStarts(from: ISODate = weekStartOf()) {
 // -----------------------------------------------------------------------------
 
 export async function getShoppingList() {
+  await mergeDuplicateShoppingItems();
   return getDb()
     .select()
     .from(shoppingListItems)
@@ -140,7 +145,8 @@ export async function getShoppingList() {
 export async function addShoppingItems(items: ItemInput[], extra: { planId?: number; recipeId?: number } = {}) {
   const db = getDb();
   const saved: ShoppingItem[] = [];
-  for (const item of items) {
+  for (const raw of items) {
+    const item = { ...raw, unit: normalizeUnit(raw.unit) };
     const name = item.name.trim().toLowerCase();
     const [existing] = await db
       .select()
@@ -170,13 +176,66 @@ export async function addShoppingItems(items: ItemInput[], extra: { planId?: num
       saved.push(row);
     }
   }
+  // Catch duplicates written in another language ("lemon" + "לימון").
+  await mergeDuplicateShoppingItems();
   return saved;
+}
+
+/**
+ * Merge list items that are the same thing written differently: same item in
+ * two languages ("egg" / "ביצה") or the same unit spelled two ways ("pcs" /
+ * "יח׳"). Each name is mapped to English (cached, see translate.ts) and items
+ * with the same English name and unit become one line with the quantities
+ * added up. Only items not yet bought are merged.
+ */
+export async function mergeDuplicateShoppingItems() {
+  const db = getDb();
+  const open = await db
+    .select()
+    .from(shoppingListItems)
+    .where(eq(shoppingListItems.checked, false))
+    .orderBy(asc(shoppingListItems.id));
+  // Older rows may still have a unit spelled another way ("גרם"): store the
+  // standard form so it's shown in the right language.
+  for (const item of open) {
+    const unit = normalizeUnit(item.unit);
+    if (unit !== item.unit) {
+      await db.update(shoppingListItems).set({ unit }).where(eq(shoppingListItems.id, item.id));
+      item.unit = unit;
+    }
+  }
+  if (open.length < 2) return;
+
+  const english = await translateTexts(
+    open.map((item) => item.name),
+    "en",
+  );
+  const groups = new Map<string, ShoppingItem[]>();
+  for (const item of open) {
+    const key = `${(english.get(item.name) ?? item.name).trim().toLowerCase()}|${normalizeUnit(item.unit) ?? ""}`;
+    groups.set(key, [...(groups.get(key) ?? []), item]);
+  }
+
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const [keep, ...rest] = group;
+    const quantities = group.map((item) => item.quantity);
+    const quantity = quantities.every((q) => q != null)
+      ? quantities.reduce((sum, q) => sum! + q!, 0)
+      : keep.quantity;
+    await db
+      .update(shoppingListItems)
+      .set({ quantity, unit: normalizeUnit(keep.unit) })
+      .where(eq(shoppingListItems.id, keep.id));
+    await db.delete(shoppingListItems).where(inArray(shoppingListItems.id, rest.map((item) => item.id)));
+  }
 }
 
 export async function updateShoppingItem(
   id: number,
   changes: Partial<Pick<ShoppingItem, "name" | "quantity" | "unit" | "category" | "checked">>,
 ) {
+  if ("unit" in changes) changes = { ...changes, unit: normalizeUnit(changes.unit) };
   const [row] = await getDb()
     .update(shoppingListItems)
     .set(changes)
@@ -204,7 +263,7 @@ export async function getPantry() {
 export async function addPantryItem(item: ItemInput & { expiresOn?: ISODate | null }) {
   const [row] = await getDb()
     .insert(pantryItems)
-    .values({ ...item, name: item.name.trim().toLowerCase() })
+    .values({ ...item, name: item.name.trim().toLowerCase(), unit: normalizeUnit(item.unit) })
     .returning();
   return row;
 }
@@ -213,6 +272,7 @@ export async function updatePantryItem(
   id: number,
   changes: Partial<Pick<PantryItem, "name" | "quantity" | "unit" | "category" | "expiresOn">>,
 ) {
+  if ("unit" in changes) changes = { ...changes, unit: normalizeUnit(changes.unit) };
   const [row] = await getDb()
     .update(pantryItems)
     .set({ ...changes, updatedAt: new Date() })

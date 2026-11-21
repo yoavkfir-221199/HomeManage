@@ -9,12 +9,14 @@
 import { addPantryItem, deletePantryItem, updatePantryItem } from "@/app/food/actions";
 import { ItemList } from "@/components/food/item-list";
 import { getPantry } from "@/lib/food/data";
+import { localizeNames } from "@/lib/i18n/translate";
 import { getI18n } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
 export default async function PantryPage() {
-  const [pantry, { t }] = await Promise.all([getPantry(), getI18n()]);
+  const [rawPantry, { t, lang }] = await Promise.all([getPantry(), getI18n()]);
+  const pantry = await localizeNames(rawPantry, lang);
 
   return (
     <section className="hm-card">

@@ -20,6 +20,7 @@ import { and, asc, desc, eq, ilike, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { getDb, schema } from "@/lib/db";
+import { addShoppingItems } from "@/lib/food/data";
 
 const { pantryItems, shoppingListItems, recipes } = schema;
 
@@ -182,11 +183,8 @@ export const groceryTools = {
     }),
     execute: ({ items, recipeId }) =>
       safely(async () => {
-        const rows = await getDb()
-          .insert(shoppingListItems)
-          .values(items.map((item) => ({ ...item, recipeId })))
-          .returning();
-        return { added: rows };
+        // The shared data layer merges duplicates (also across languages).
+        return { added: await addShoppingItems(items, { recipeId }) };
       }),
   }),
 

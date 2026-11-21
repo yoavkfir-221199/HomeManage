@@ -18,6 +18,7 @@ import { PlannerChat } from "@/components/food/planner-chat";
 import { WeekPlan } from "@/components/food/week-plan";
 import { getShoppingList, getWeekPlan } from "@/lib/food/data";
 import { addDays, today, weekLabel, weekStartOf } from "@/lib/food/week";
+import { localizeMeals, localizeNames } from "@/lib/i18n/translate";
 import { getI18n } from "@/lib/settings";
 
 // Always render with fresh data (never cache this page).
@@ -25,7 +26,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PlanPage({ searchParams }: { searchParams: Promise<{ week?: string }> }) {
   const { week } = await searchParams;
-  const { t, locale } = await getI18n();
+  const { t, locale, lang } = await getI18n();
   const now = today();
   const thisWeek = weekStartOf(now);
   // No week in the URL: show this week, except on Friday and Saturday, when the
@@ -34,8 +35,13 @@ export default async function PlanPage({ searchParams }: { searchParams: Promise
   const defaultWeek = isWeekend ? addDays(thisWeek, 7) : thisWeek;
   const weekStart = week && /^\d{4}-\d{2}-\d{2}$/.test(week) ? weekStartOf(week) : defaultWeek;
 
-  // Both queries run at the same time.
-  const [plan, shoppingList] = await Promise.all([getWeekPlan(weekStart), getShoppingList()]);
+  // Both queries run at the same time. Then names and dish titles are shown
+  // in the app's language (translated once and cached, see translate.ts).
+  const [plan, rawList] = await Promise.all([getWeekPlan(weekStart), getShoppingList()]);
+  const [shoppingList, meals] = await Promise.all([
+    localizeNames(rawList, lang),
+    localizeMeals(plan?.meals ?? [], lang),
+  ]);
   const boughtCount = shoppingList.filter((item) => item.checked).length;
 
   const relative =
@@ -63,8 +69,8 @@ export default async function PlanPage({ searchParams }: { searchParams: Promise
             <ChevronRightIcon className="hm-flip" />
           </Link>
         </div>
-        {plan?.meals.length ? (
-          <WeekPlan weekStart={weekStart} meals={plan.meals} today={now} />
+        {meals.length ? (
+          <WeekPlan weekStart={weekStart} meals={meals} today={now} />
         ) : (
           <div className="hm-empty">
             <strong>{t.week.noMealsTitle}</strong>

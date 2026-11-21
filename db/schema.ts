@@ -9,6 +9,7 @@ import {
   serial,
   text,
   timestamp,
+  unique,
 } from "drizzle-orm/pg-core";
 
 // What you have at home right now.
@@ -63,6 +64,20 @@ export const plannedMeals = pgTable("planned_meals", {
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// Translations of item names and dish titles, so each text is translated by
+// the AI only once. "egg" + "he" -> "ביצה". See src/lib/i18n/translate.ts.
+export const translations = pgTable(
+  "translations",
+  {
+    id: serial("id").primaryKey(),
+    source: text("source").notNull(),
+    lang: text("lang").notNull(), // the language translated INTO
+    translated: text("translated").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [unique("translations_source_lang").on(table.source, table.lang)],
+);
 
 // Long-term memory about how you eat, set on the Settings page (or by asking
 // the planner to "remember…"). Every chat request includes these.

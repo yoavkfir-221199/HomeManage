@@ -11,13 +11,20 @@ import Link from "next/link";
 import { WeekPlan } from "@/components/food/week-plan";
 import { getPastPlans } from "@/lib/food/data";
 import { weekLabel } from "@/lib/food/week";
+import { localizeMeals } from "@/lib/i18n/translate";
 import { getI18n } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
 export default async function HistoryPage() {
-  const { t, locale } = await getI18n();
-  const weeks = (await getPastPlans()).filter((week) => week.meals.length > 0);
+  const { t, locale, lang } = await getI18n();
+  const pastWeeks = (await getPastPlans()).filter((week) => week.meals.length > 0);
+  // Translate every week's dish titles in one go (one AI call at most).
+  const allMeals = await localizeMeals(
+    pastWeeks.flatMap((week) => week.meals),
+    lang,
+  );
+  const weeks = pastWeeks.map((week) => ({ ...week, meals: allMeals.filter((m) => m.planId === week.id) }));
 
   if (!weeks.length) {
     return (

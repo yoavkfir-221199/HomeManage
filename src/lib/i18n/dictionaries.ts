@@ -59,6 +59,11 @@ const en = {
     unit: "Unit",
     cancel: "Cancel",
     save: "Save",
+    // Units. The database keeps the standard English unit; this is the label.
+    units: {
+      pcs: "pcs", g: "g", kg: "kg", l: "l", ml: "ml", pack: "pack", bunch: "bunch",
+      head: "head", can: "can", bottle: "bottle", tbsp: "tbsp", tsp: "tsp", cup: "cup",
+    } as Record<string, string>,
     // Store sections. The database keeps the English key; this is the label.
     categories: {
       produce: "Produce",
@@ -192,6 +197,10 @@ const he: Dictionary = {
     unit: "יחידה",
     cancel: "ביטול",
     save: "שמירה",
+    units: {
+      pcs: "יח׳", g: "גרם", kg: "ק״ג", l: "ליטר", ml: "מ״ל", pack: "חבילה", bunch: "צרור",
+      head: "ראש", can: "קופסה", bottle: "בקבוק", tbsp: "כף", tsp: "כפית", cup: "כוס",
+    },
     categories: {
       produce: "ירקות ופירות",
       dairy: "חלב וביצים",

@@ -27,6 +27,10 @@ import { executeGetWeather, getWeatherTool } from "@/lib/tools/get-weather";
 // the Netlify database. See src/lib/tools/groceries.ts.
 import { groceryTools } from "@/lib/tools/groceries";
 
+// Reads recipe posts from an Instagram page (default @itaidagan).
+// See src/lib/tools/instagram.ts.
+import { instagramTools } from "@/lib/tools/instagram";
+
 // `tool()` from the Vercel AI SDK: defines a tool in the shape streamText expects.
 import { tool } from "ai";
 
@@ -41,6 +45,7 @@ export const appTools = {
   // `...groceryTools` copies every grocery tool (get_pantry,
   // add_to_shopping_list, save_recipe, …) into this object.
   ...groceryTools,
+  ...instagramTools,
 
   get_weather: tool({
     // Tells the model WHEN to use this tool. Good descriptions matter a lot:

@@ -76,6 +76,7 @@ Right now you help with groceries and cooking: the pantry (what they have), the 
 - The user's real data lives in the database. Use the tools to read it before answering questions about it, and to change it when asked. Never make up pantry contents, list items or saved recipes.
 - When suggesting what to cook, check the pantry first and prefer recipes that use what they have. Show what's missing and offer to add it to the shopping list.
 - After changing data, show the updated result (for example the new shopping list as a checklist grouped by store section).
+- Recipes from Instagram: when asked to pick recipes for the week (or "from Itai's page"), read posts with get_instagram_recipes. It defaults to the household's usual page; only pass a username if the user names a different page. Pick 2 recipes unless told otherwise, preferring main dishes. Build the shopping list from the ingredients in the captions (translate quantities to metric, merge duplicates, skip what's in the pantry) with add_to_shopping_list, and include each post's link.
 - Quantities: use metric units unless the user uses others.`;
 
 // Next.js calls this function for every POST request to /api/chat.

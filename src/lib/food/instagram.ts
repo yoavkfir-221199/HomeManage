@@ -8,8 +8,10 @@
 // Recipe pages usually write the ingredients in the caption (e.g. a "מצרכים"
 // section), so the caption text is enough to build a shopping list.
 //
-// The token in INSTAGRAM_ACCESS_TOKEN is long-lived but expires (see
-// INSTAGRAM_TOKEN_EXPIRES in .env).
+// INSTAGRAM_ACCESS_TOKEN is a system user token ("HomeManage Bot" in the
+// "Yoav Kfir" business portfolio, Meta Business Suite → Settings → System
+// users). It never expires, so nothing needs renewing. If it's ever revoked,
+// generate a new one there with the same 5 permissions.
 // =============================================================================
 
 import "server-only";
@@ -85,7 +87,7 @@ export async function getRecentPosts(
   if (body.error) {
     const hint =
       body.error.code === 190
-        ? " (the Instagram access token expired — create a new one in the Meta Graph API Explorer)"
+        ? " (the Instagram token was revoked — generate a new one for the HomeManage Bot system user in Meta Business Suite)"
         : body.error.code === 110 || /business_discovery|cannot be found/i.test(body.error.message)
           ? ` (@${handle} must be a public Business or Creator account)`
           : "";

@@ -1,0 +1,15 @@
+# Netlify settings for HomeManage.
+# `npm run dev:netlify` (netlify dev) starts a local Postgres, sets
+# NETLIFY_DB_URL, runs `npm run dev` (Next.js on port 3000) and serves the
+# app with Netlify's environment at http://localhost:8888.
+
+[build]
+  command = "npm run build"
+
+[dev]
+  # Pin Next.js to port 3000 (it would otherwise follow a PORT env var and
+  # clash with Netlify's own port 8888).
+  command = "npm run dev -- --port 3000"
+  targetPort = 3000
+  port = 8888
+  autoLaunch = false

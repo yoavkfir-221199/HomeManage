@@ -1,0 +1,52 @@
+{
+  "name": "homemanage",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "generate:apiKey": "openui generate-api-key",
+    "generate": "openui generate src/lib/library.ts --spec --out src/generated/spec.json",
+    "predev": "npm run generate",
+    "dev": "next dev",
+    "dev:netlify": "netlify dev",
+    "build": "next build",
+    "start": "next start",
+    "deploy": "openui deploy",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "netlify db migrations apply"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^4.0.72",
+    "@netlify/database": "^2.0.3",
+    "@openuidev/intelligent-ui-library": "0.0.2",
+    "@openuidev/lang-core": "1.1.1",
+    "@openuidev/react-headless": "0.18.7",
+    "@openuidev/react-lang": "1.1.1",
+    "@openuidev/react-ui": "0.18.7",
+    "@openuidev/server": "^0.4.2",
+    "ai": "^7.0.111",
+    "drizzle-orm": "^1.0.0-beta.22",
+    "next": "^16.3.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "zod": "^4.4.3",
+    "zustand": "^4.5.5"
+  },
+  "devDependencies": {
+    "@openuidev/cli": "0.6.3",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "drizzle-kit": "^1.0.0-beta.22",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.0",
+    "netlify-cli": "^27.20.1",
+    "typescript": "^5"
+  },
+  "allowScripts": {
+    "@openuidev/lang-core": true,
+    "sharp": true,
+    "unrs-resolver": true
+  }
+}

@@ -1,9 +1,7 @@
-import "@openuidev/react-ui/styles/index.css";
+import { redirect } from "next/navigation";
 
-import CloudChat from "@/components/cloud-chat";
-
-export const dynamic = "force-dynamic";
-
-export default function Page() {
-  return <CloudChat />;
+// The app opens on the Food section's Plan page.
+// (The original full-screen OpenUI chat still lives at /chat.)
+export default function Home() {
+  redirect("/food/plan");
 }
